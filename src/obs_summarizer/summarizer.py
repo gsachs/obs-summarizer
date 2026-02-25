@@ -128,15 +128,7 @@ def summarize_note(
                 try:
                     return json.loads(json_str)
                 except json.JSONDecodeError:
-                    # Try to find a valid JSON endpoint by looking for closing patterns
-                    # In case there are multiple closing braces
-                    for i in range(brace_end, brace_start, -1):
-                        if content[i] == "}":
-                            try:
-                                candidate = content[brace_start:i+1]
-                                return json.loads(candidate)
-                            except json.JSONDecodeError:
-                                pass
+                    pass
 
         # If all extraction methods fail, provide detailed error
         raise json.JSONDecodeError(

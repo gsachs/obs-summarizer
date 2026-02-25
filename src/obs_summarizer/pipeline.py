@@ -69,6 +69,8 @@ def run_pipeline(
         per_note_summaries = []
         cache_dir = config["cache_dir"]
         max_input_chars = config["max_input_chars"]
+        cached_count = 0
+        summarized_count = 0
 
         for i, file_path in enumerate(target_files, 1):
             try:
@@ -81,6 +83,7 @@ def run_pipeline(
                     if cached:
                         logger.debug(f"Cache hit: {file_path.name}")
                         per_note_summaries.append(cached)
+                        cached_count += 1
                         continue
 
                 # Summarize this file
@@ -99,6 +102,7 @@ def run_pipeline(
                 # Cache it
                 save_cache(cache_dir, cache_key, summary)
                 per_note_summaries.append(summary)
+                summarized_count += 1
 
             except (ValueError, KeyError, TypeError, OSError) as e:
                 # Expected errors: LLM response format, file I/O, config issues
@@ -130,11 +134,9 @@ def run_pipeline(
         save_state(state, config["state_path"])
 
         # Step 10: Report
-        num_cached = len([s for s in per_note_summaries if "path" in s])
-        num_summarized = len(per_note_summaries) - num_cached
         print(
             f"✓ Digest written: {len(per_note_summaries)} articles "
-            f"({num_cached} from cache, {num_summarized} summarized)",
+            f"({cached_count} from cache, {summarized_count} summarized)",
             file=sys.stderr,
         )
         print(f"✓ Saved to: {digest_path}", file=sys.stderr)
