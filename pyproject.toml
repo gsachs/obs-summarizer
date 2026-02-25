@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "obs-summarizer"
+version = "0.1.0"
+description = "Obsidian note summarizer — scans vault, summarizes notes via LLM, writes daily digest"
+requires-python = ">=3.9"
+authors = [{name = "Claude Code", email = "noreply@anthropic.com"}]
+dependencies = [
+    "anthropic>=0.40",
+    "openai>=1.50",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[project.scripts]
+obs-digest = "obs_summarizer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true

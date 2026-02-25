@@ -1,0 +1,40 @@
+# Obsidian Digest Agent Configuration
+# Copy this to config.yaml and customize for your vault
+
+# Path to your Obsidian vault
+vault_path: ~/Obsidian/MyVault
+
+# Optional: restrict scanning to specific folders
+# If omitted, entire vault is scanned
+include_folders: []
+  # - Clippings
+  # - Readwise
+
+# Exclude files matching these globs
+exclude_globs:
+  - "**/.obsidian/**"
+  - "**/templates/**"
+  - "**/*.tmp"
+
+# LLM Backend: "claude" or "local"
+llm_backend: claude
+
+# Claude settings (used if llm_backend: claude)
+claude_model: claude-sonnet-4-6
+
+# Local LLM settings (used if llm_backend: local)
+# Example: LM Studio running on localhost:1234
+local_base_url: http://localhost:1234/v1
+local_model: llama-3.2-3b-instruct
+
+# Digest output folder (relative to vault)
+digest_folder: Daily Digests
+
+# Max characters to send to LLM per note (~4000 tokens)
+max_input_chars: 16000
+
+# Cache directory (relative to project root)
+cache_dir: .cache/summaries
+
+# State file path (stores last run checkpoint)
+state_path: state.json
