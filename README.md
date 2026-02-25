@@ -211,7 +211,7 @@ Test coverage: 78 tests across all modules.
 
 ## License
 
-Unlicensed. Use freely.
+MIT — see [LICENSE](LICENSE).
 
 ## Contributing
 
