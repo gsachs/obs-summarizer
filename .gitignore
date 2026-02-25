@@ -36,6 +36,7 @@ ENV/
 # Project-specific
 state.json
 config.yaml
+init_think.txt
 .cache/
 .env
 
