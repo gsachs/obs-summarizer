@@ -24,12 +24,34 @@ def write_digest_note(
 
     Returns:
         Path to written digest file
+
+    Raises:
+        ValueError: If digest_folder tries to escape vault boundary
     """
     if date is None:
         date = datetime.now(timezone.utc)
 
-    vault = Path(vault_path)
+    vault = Path(vault_path).resolve()
+
+    # SECURITY: Validate digest_folder is relative and stays within vault
+    if digest_folder.startswith("/") or ".." in digest_folder:
+        raise ValueError(
+            f"digest_folder must be relative path within vault: {digest_folder}"
+        )
+
     digest_dir = vault / digest_folder
+    digest_dir = digest_dir.resolve()
+
+    # Verify it's still within vault after resolving symlinks
+    try:
+        digest_dir.relative_to(vault)
+    except ValueError:
+        raise ValueError(
+            f"digest_folder would escape vault boundary: {digest_folder}\n"
+            f"Vault: {vault}\n"
+            f"Resolved path: {digest_dir}"
+        )
+
     digest_dir.mkdir(parents=True, exist_ok=True)
 
     # Filename: YYYY-MM-DD-digest.md

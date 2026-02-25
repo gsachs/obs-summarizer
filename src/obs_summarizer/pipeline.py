@@ -100,9 +100,14 @@ def run_pipeline(
                 save_cache(cache_dir, cache_key, summary)
                 per_note_summaries.append(summary)
 
-            except Exception as e:
+            except (ValueError, KeyError, TypeError, OSError) as e:
+                # Expected errors: LLM response format, file I/O, config issues
                 logger.warning(f"Failed to summarize {file_path.name}: {e}. Skipping.")
                 continue
+            except Exception as e:
+                # Unexpected errors should fail the pipeline, not silently skip
+                logger.error(f"Unexpected error processing {file_path.name}: {e}", exc_info=True)
+                raise
 
         if not per_note_summaries:
             logger.error("No summaries generated (all files failed)")

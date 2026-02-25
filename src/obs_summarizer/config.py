@@ -41,6 +41,16 @@ def load_config(config_path: Optional[str] = None) -> dict:
     if config is None:
         config = {}
 
+    # SECURITY: Reject api_key in config file
+    # API keys must NEVER be stored in config.yaml
+    if "api_key" in config:
+        raise ConfigError(
+            "SECURITY ERROR: api_key must NOT be in config.yaml\n"
+            "Set ANTHROPIC_API_KEY environment variable instead:\n"
+            "  export ANTHROPIC_API_KEY=sk-ant-...\n"
+            "See README.md for details"
+        )
+
     # Validate required fields
     if "vault_path" not in config:
         raise ConfigError("Missing required field: vault_path")

@@ -37,8 +37,17 @@ def create_llm_client(config: Dict) -> Callable:
 def _create_claude_client(config: Dict) -> Callable:
     """Create Claude API client with retry logic."""
     import anthropic
+    import os
 
-    api_key = config.get("api_key")  # Allow override; defaults to env var
+    # SECURITY: API key must come from environment variable ONLY
+    # Never allow storing secrets in config.yaml
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "ANTHROPIC_API_KEY environment variable not set.\n"
+            "Set it with: export ANTHROPIC_API_KEY=sk-ant-..."
+        )
+
     model = config.get("claude_model", "claude-sonnet-4-6")
     timeout = config.get("llm_timeout", 60)
 

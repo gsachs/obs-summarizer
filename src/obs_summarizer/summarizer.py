@@ -86,16 +86,15 @@ def summarize_note(
         try:
             summary = json.loads(response.content)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON for {title}: {e}")
-            summary = {
-                "summary": f"[Failed to summarize: {title}]",
-                "bullets": [],
-                "why_it_matters": "",
-                "tags": [],
-                "notable_quote": None,
-            }
+            # JSON parsing failed even after retry - this is a critical error
+            # Raise instead of returning fake data that would silently corrupt the digest
+            raise ValueError(
+                f"Failed to parse JSON response for {title} after retry.\n"
+                f"LLM response: {response.content[:200]}...\n"
+                f"Error: {e}"
+            ) from e
 
-    # Ensure all required fields exist
+    # Fill in defaults for missing fields (but only if JSON was successfully parsed)
     summary.setdefault("summary", "")
     summary.setdefault("bullets", [])
     summary.setdefault("why_it_matters", "")

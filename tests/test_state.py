@@ -23,10 +23,10 @@ def test_load_state_valid(tmp_state, sample_state_dict):
 
 
 def test_load_state_corrupt_json(tmp_state):
-    """Corrupt JSON returns default and logs warning."""
+    """Corrupt JSON raises ValueError (cannot be silently recovered)."""
     Path(tmp_state).write_text("invalid json {")
-    state = load_state(tmp_state)
-    assert state == {"last_run_iso": None}
+    with pytest.raises(ValueError, match="corrupted"):
+        load_state(tmp_state)
 
 
 def test_save_state(tmp_state, sample_state_dict):

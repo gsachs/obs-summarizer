@@ -18,6 +18,9 @@ def load_state(state_path: str) -> dict:
 
     Returns:
         State dictionary with 'last_run_iso' key (may be None on first run)
+
+    Raises:
+        ValueError: If state file is corrupted (cannot be recovered silently)
     """
     path = Path(state_path)
 
@@ -28,9 +31,20 @@ def load_state(state_path: str) -> dict:
         with open(path, "r", encoding="utf-8") as f:
             state = json.load(f)
         return state
-    except (json.JSONDecodeError, IOError) as e:
-        logger.warning(f"Failed to load state from {state_path}: {e}. Treating as first run.")
-        return {"last_run_iso": None}
+    except json.JSONDecodeError as e:
+        # Corrupted state file is a critical error, not a first-run condition
+        raise ValueError(
+            f"State file is corrupted and cannot be parsed: {state_path}\n"
+            f"Error: {e}\n"
+            f"Recovery: Manually delete {state_path} and re-run if you want to start fresh.\n"
+            f"Otherwise, restore from backup."
+        ) from e
+    except IOError as e:
+        # File I/O errors (permissions, disk full, etc.) should also fail
+        raise ValueError(
+            f"Cannot read state file {state_path}: {e}\n"
+            f"Check file permissions and disk space."
+        ) from e
 
 
 def save_state(state: dict, state_path: str) -> None:

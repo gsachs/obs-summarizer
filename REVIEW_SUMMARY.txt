@@ -1,0 +1,249 @@
+================================================================================
+KIERAN'S CODE REVIEW — obs-summarizer
+================================================================================
+
+Date: 2026-02-25
+Reviewer: Kieran (super senior Python developer)
+Target Python: 3.9+ (configured for 3.11, mypy strict mode)
+
+================================================================================
+VERDICT: v0.1 ACCEPTABLE, v1.0 NEEDS PHASE 2 FIXES
+================================================================================
+
+This codebase demonstrates good architecture and clean separation of concerns.
+However, THREE CRITICAL ISSUES block production release:
+
+1. Pipeline's broad exception handling masks real failures (silent success)
+2. Summarizer returns fake summaries on LLM failure (garbage in digest)
+3. State corruption is handled silently (lost checkpoints)
+
+All three can be fixed in ~2 hours.
+
+================================================================================
+CRITICAL ISSUES (BLOCK RELEASE)
+================================================================================
+
+Issue #1: llm.py — Missing return type on factory function
+  Impact: mypy strict mode fails, callers don't know callable signature
+  Fix: Return Callable[[str, str], LLMResponse] instead of bare Callable
+  
+Issue #2: llm.py — Duplicate retry logic (60 lines)
+  Impact: Code smell, maintenance nightmare
+  Fix: Extract _retry_with_exponential_backoff() helper
+  
+Issue #3: summarizer.py — Garbage fallback state on JSON parse failure
+  Impact: Bad summaries silently included in digest
+  Fix: Raise SummarizationError instead of returning fake summary
+  
+Issue #4: pipeline.py — Overly broad exception handling (Exception as e)
+  Impact: All failures treated as "skip this file" (silent success on total failure)
+  Fix: Catch only specific exceptions (SummarizationError, UnicodeDecodeError)
+  
+Issue #5: pipeline.py — Silent file encoding errors
+  Impact: UTF-8 errors ignored, content corrupted
+  Fix: Catch UnicodeDecodeError and log explicitly
+  
+Issue #6: state.py — State corruption silently treated as first run
+  Impact: Lost checkpoints, silent data loss
+  Fix: Raise StateError and let operator recover manually
+
+TOTAL EFFORT: 2-3 hours to fix all CRITICAL issues
+
+================================================================================
+HIGH PRIORITY (BEFORE v1.0)
+================================================================================
+
+Issue #7: Missing type hints on Callable parameters
+  Files: llm.py (line 18), summarizer.py (lines 43, 108), pipeline.py (line 66)
+  Impact: mypy strict mode fails
+  Fix: Specify Callable[[str, str], LLMResponse] instead of bare Callable
+  
+Issue #8: Old-style type imports (Dict, List, Optional)
+  Files: All modules
+  Impact: Not Python 3.9+ idiomatic
+  Fix: Use dict, list, str | None instead
+  
+Issue #9: Pipeline return codes are undocumented and asymmetric
+  Files: pipeline.py (lines 24-34)
+  Impact: Confusing exit semantics (what does 0 mean?)
+  Fix: Add dataclass PipelineResult or detailed docstring
+
+TOTAL EFFORT: 1-2 hours to fix all HIGH priority issues
+
+================================================================================
+MEDIUM PRIORITY (NICE-TO-HAVE)
+================================================================================
+
+Issue #10: Redundant cached item detection logic (doesn't work)
+  Files: pipeline.py (lines 128-129)
+  Impact: num_cached always equals 0 (wrong metric)
+  Fix: Use explicit from_cache flag
+  
+Issue #11: Hardcoded magic numbers (max_tokens=1024, temperature=0.7)
+  Files: llm.py (lines 53, 100)
+  Impact: Not configurable
+  Fix: Add to config dict with sensible defaults
+  
+Issue #12: Verbose nested JSON error handling
+  Files: summarizer.py (lines 76-96)
+  Impact: Code is hard to read, retry logic doesn't add value
+  Fix: Remove nested try/except, just raise on first parse failure
+  
+Issue #13: Unsafe list indexing (summary.get("tags")[0])
+  Files: digest_writer.py (line 78)
+  Impact: Can raise IndexError on empty list
+  Fix: Add bounds check or use conditional
+  
+Issue #14: Redundant Z-to-+00:00 conversion (3 places)
+  Files: state.py (lines 79-97)
+  Impact: Repeated code, violates DRY
+  Fix: Extract _parse_iso_datetime() helper
+
+TOTAL EFFORT: 1 hour to fix all MEDIUM priority issues
+
+================================================================================
+ASSESSMENT BY FILE
+================================================================================
+
+llm.py
+  Status: MEDIUM (type hints + DRY refactor needed)
+  Issues: 7 (3 critical, 2 high, 2 medium)
+  
+summarizer.py
+  Status: MEDIUM (remove garbage fallback, improve error handling)
+  Issues: 5 (2 critical, 2 high, 1 medium)
+  
+pipeline.py
+  Status: HIGH (critical exception handling bug)
+  Issues: 6 (3 critical, 2 high, 1 medium)
+  
+state.py
+  Status: HIGH (silent failure on corruption)
+  Issues: 3 (1 critical, 1 high, 1 medium)
+  
+cache.py
+  Status: GOOD (minor type hint updates)
+  Issues: 2 (both low)
+  
+config.py
+  Status: GOOD (excellent validation)
+  Issues: 1 (low)
+  
+digest_writer.py
+  Status: GOOD (clean code)
+  Issues: 2 (both low)
+  
+scanner.py
+  Status: GOOD (clean, well-structured)
+  Issues: 1 (low)
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+Immediate (before any release):
+  1. Fix all CRITICAL issues (2-3 hours)
+  2. Run mypy --strict to verify type correctness
+  3. Add tests for error handling (1 hour)
+  4. Test end-to-end with corrupt state.json, bad UTF-8 files, etc.
+
+v0.1 Release (to beta users):
+  - Release with CRITICAL fixes applied
+  - Document known limitations
+
+v1.0 Release (to production):
+  - Apply all HIGH priority fixes
+  - Standardize logging levels across modules
+  - Create @dataclass Config to replace untyped dict
+  - Define custom exceptions (SummarizationError, RollupError, StateError)
+  - Update tests to cover error paths
+
+================================================================================
+DOCUMENTATION PROVIDED
+================================================================================
+
+1. KIERAN_REVIEW.md
+   - Comprehensive line-by-line analysis
+   - Detailed explanation of each issue
+   - Impact assessment
+   - Priority categorization
+   
+2. CRITICAL_ISSUES.md
+   - Three blocking issues explained in detail
+   - Clear "before" and "after" code
+   - Testing strategy
+   
+3. FIXES_REFERENCE.md
+   - Complete, copy-pasteable fixed code
+   - Benefits of each fix
+   - Testing examples
+   
+4. REVIEW_SUMMARY.txt (this file)
+   - Executive summary
+   - Quick reference guide
+
+================================================================================
+CODE QUALITY CHECKLIST
+================================================================================
+
+Type Safety:
+  [ ] All function parameters have type hints
+  [ ] All function return values have type hints
+  [ ] mypy --strict passes without errors
+  [ ] No bare "Any" without justification
+  [ ] No "Callable" without parameter/return types
+
+Error Handling:
+  [ ] No bare "except Exception" (too broad)
+  [ ] No silent failures (all exceptions logged)
+  [ ] Custom exceptions for domain errors
+  [ ] File I/O errors handled explicitly
+  [ ] JSON parsing errors don't create garbage state
+
+Code Quality:
+  [ ] No code duplication (DRY violated only for good reason)
+  [ ] Functions do one thing (single responsibility)
+  [ ] Max function size: 20 lines (most 5-10)
+  [ ] Magic numbers extracted to constants
+  [ ] All public APIs documented with docstrings
+  [ ] Imports organized: stdlib, third-party, local
+  [ ] No lazy imports (except optional dependencies)
+
+Testing:
+  [ ] Error paths covered by tests
+  [ ] Edge cases documented and tested
+  [ ] All exceptions can be caught and handled
+  [ ] Integration tests verify contract boundaries
+
+================================================================================
+GRADING
+================================================================================
+
+Architecture:        A (clear separation, good use of modules)
+Type Safety:        B- (missing some hints, old-style syntax)
+Error Handling:     D (too broad, silent failures)
+Code Quality:       B (mostly clean, some DRY violations)
+Testing:            B (good coverage, weak error path tests)
+
+Overall Grade: B- → B+ after fixes
+
+This code is ready for v0.1 with CRITICAL fixes applied.
+Not ready for v1.0 until all HIGH priority fixes are complete.
+
+================================================================================
+KIERAN'S FINAL WORDS
+================================================================================
+
+This is solid engineering work. The architecture is sound, the separation of
+concerns is clear, and the code is mostly readable. However, error handling is
+too defensive and creates a false sense of security (silent failures → silent
+success).
+
+The three critical issues are solvable in a couple hours. After that, this will
+be production-ready code.
+
+Keep up the good work. Follow the fixes, listen to mypy, and you'll have an
+excellent codebase.
+
+— Kieran
+================================================================================

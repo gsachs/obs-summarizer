@@ -138,3 +138,34 @@ def test_format_digest_markdown_handles_missing_fields():
 
     assert "Test" in result
     assert result  # Just ensure it generates something
+
+
+def test_write_digest_note_rejects_path_traversal():
+    """Path traversal attempts are rejected."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault = Path(tmpdir)
+
+        # Attempt 1: Directory traversal with ..
+        with pytest.raises(ValueError, match="must be relative path within vault"):
+            write_digest_note(str(vault), "../../etc", "Content")
+
+        # Attempt 2: Absolute path
+        with pytest.raises(ValueError, match="must be relative path within vault"):
+            write_digest_note(str(vault), "/etc/cron.d", "Content")
+
+        # Attempt 3: Mixed traversal
+        with pytest.raises(ValueError, match="must be relative path within vault"):
+            write_digest_note(str(vault), "Drafts/../../../tmp", "Content")
+
+
+def test_write_digest_note_allows_nested_relative_paths():
+    """Valid nested relative paths are allowed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault = Path(tmpdir)
+
+        # Valid: nested relative path
+        result = write_digest_note(str(vault), "Archive/2026/February", "Content")
+
+        assert result.exists()
+        assert "Archive/2026/February" in str(result)
+        assert result.read_text() == "Content"

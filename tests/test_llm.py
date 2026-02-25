@@ -1,5 +1,6 @@
 """Tests for LLM module."""
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,23 +19,23 @@ def test_create_claude_client_success():
     config = {
         "llm_backend": "claude",
         "claude_model": "claude-sonnet-4-6",
-        "api_key": "sk-ant-test",
         "llm_timeout": 60,
     }
 
-    with patch("anthropic.Anthropic") as mock_anthropic:
-        mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test"}):
+        with patch("anthropic.Anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.return_value = mock_client
 
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text="Test response")]
-        mock_client.messages.create.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.content = [MagicMock(text="Test response")]
+            mock_client.messages.create.return_value = mock_response
 
-        client = _create_claude_client(config)
-        response = client(system="test system", user="test user")
+            client = _create_claude_client(config)
+            response = client(system="test system", user="test user")
 
-        assert isinstance(response, LLMResponse)
-        assert response.content == "Test response"
+            assert isinstance(response, LLMResponse)
+            assert response.content == "Test response"
 
 
 def test_create_local_client_success():
@@ -66,28 +67,28 @@ def test_claude_client_retry_on_rate_limit():
     config = {
         "llm_backend": "claude",
         "claude_model": "claude-sonnet-4-6",
-        "api_key": "sk-ant-test",
     }
 
-    with patch("anthropic.Anthropic") as mock_anthropic:
-        with patch("obs_summarizer.llm.time.sleep"):  # Don't actually sleep
-            mock_client = MagicMock()
-            mock_anthropic.return_value = mock_client
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test"}):
+        with patch("anthropic.Anthropic") as mock_anthropic:
+            with patch("obs_summarizer.llm.time.sleep"):  # Don't actually sleep
+                mock_client = MagicMock()
+                mock_anthropic.return_value = mock_client
 
-            # Fail twice, succeed on third try
-            import anthropic
+                # Fail twice, succeed on third try
+                import anthropic
 
-            mock_client.messages.create.side_effect = [
-                anthropic.RateLimitError("Rate limit", response=MagicMock(), body={}),
-                anthropic.RateLimitError("Rate limit", response=MagicMock(), body={}),
-                MagicMock(content=[MagicMock(text="Success")]),
-            ]
+                mock_client.messages.create.side_effect = [
+                    anthropic.RateLimitError("Rate limit", response=MagicMock(), body={}),
+                    anthropic.RateLimitError("Rate limit", response=MagicMock(), body={}),
+                    MagicMock(content=[MagicMock(text="Success")]),
+                ]
 
-            client = _create_claude_client(config)
-            response = client(system="test", user="test")
+                client = _create_claude_client(config)
+                response = client(system="test", user="test")
 
-            assert response.content == "Success"
-            assert mock_client.messages.create.call_count == 3
+                assert response.content == "Success"
+                assert mock_client.messages.create.call_count == 3
 
 
 def test_local_client_retry_on_error():
