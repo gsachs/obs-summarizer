@@ -59,32 +59,70 @@ def summarize_note(
     content = truncate_to_chars(content, max_chars)
 
     system = (
-        "You are a knowledge summarizer. Extract key insights from the given text. "
-        "Return a JSON object with these exact fields:\n"
-        '- summary: 1-2 sentences summarizing the main point\n'
+        "You are a knowledge summarizer. Extract key insights from the given text.\n\n"
+        "Return ONLY a valid JSON object (nothing before or after) with these exact fields:\n"
+        "- summary: 1-2 sentences summarizing the main point\n"
         "- bullets: array of 5 key takeaways (strings)\n"
         "- why_it_matters: 1 sentence on relevance\n"
-        "- tags: array of 1-3 topic tags\n"
-        "- notable_quote: the most insightful quote from the text, or null"
+        "- tags: array of 1-3 topic tags (strings)\n"
+        "- notable_quote: the most insightful quote from the text, or null\n\n"
+        "Example response format (valid JSON only):\n"
+        '{"summary": "...", "bullets": [...], "why_it_matters": "...", "tags": [...], "notable_quote": "..."}'
     )
 
     user = f"Title: {title}\n\nContent:\n{content}"
 
     response = llm_call(system, user)
 
-    # Parse JSON response
+    # Parse JSON response with robust extraction
+    def extract_json(content: str) -> dict:
+        """Extract JSON from response, handling markdown code blocks or extra text."""
+        content = content.strip()
+
+        # Try direct parse first
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            pass
+
+        # Try extracting from markdown code block
+        if "```json" in content:
+            start = content.find("```json") + 7
+            end = content.find("```", start)
+            if end > start:
+                try:
+                    return json.loads(content[start:end].strip())
+                except json.JSONDecodeError:
+                    pass
+
+        # Try extracting first {...} object
+        start = content.find("{")
+        if start >= 0:
+            end = content.rfind("}")
+            if end > start:
+                try:
+                    return json.loads(content[start:end+1])
+                except json.JSONDecodeError:
+                    pass
+
+        # If all extraction methods fail
+        raise json.JSONDecodeError(
+            f"Could not extract valid JSON from response: {content[:200]}...",
+            content, 0
+        )
+
     try:
-        summary = json.loads(response.content)
+        summary = extract_json(response.content)
     except json.JSONDecodeError:
         logger.warning(f"Failed to parse JSON for {title}. Retrying with stricter prompt.")
         # Retry with stricter instructions
         strict_system = (
             system
-            + "\n\nIMPORTANT: Return ONLY valid JSON, no extra text before or after."
+            + "\n\nIMPORTANT: Return ONLY the JSON object, nothing else. No markdown, no explanation."
         )
         response = llm_call(strict_system, user)
         try:
-            summary = json.loads(response.content)
+            summary = extract_json(response.content)
         except json.JSONDecodeError as e:
             # JSON parsing failed even after retry - this is a critical error
             # Raise instead of returning fake data that would silently corrupt the digest
