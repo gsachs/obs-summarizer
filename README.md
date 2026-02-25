@@ -4,9 +4,26 @@ Scan your Obsidian vault for recently saved notes, summarize each one using Clau
 
 ## Quick Start
 
-### 1. Install dependencies
+### 1. Install
+
+**From GitHub (recommended):**
 
 ```bash
+pip install git+https://github.com/gsachs/obs-summarizer.git
+```
+
+**From a specific branch or tag:**
+
+```bash
+pip install git+https://github.com/gsachs/obs-summarizer.git@main
+pip install git+https://github.com/gsachs/obs-summarizer.git@v1.0.0
+```
+
+**For local development (editable install):**
+
+```bash
+git clone https://github.com/gsachs/obs-summarizer.git
+cd obs-summarizer
 pip install -e .
 ```
 
@@ -176,7 +193,7 @@ Run full test suite:
 python3 -m pytest tests/ -v
 ```
 
-Test coverage: 65 tests across all modules.
+Test coverage: 78 tests across all modules.
 
 ## Project Status
 
