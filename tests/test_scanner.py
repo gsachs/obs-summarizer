@@ -100,6 +100,19 @@ def test_filter_files_since_past(tmp_vault):
     assert len(filtered) > 0
 
 
+def test_list_markdown_files_include_folders_traversal(tmp_vault, tmp_path):
+    """include_folders entries that escape the vault raise ValueError."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.md").write_text("secret")
+
+    with pytest.raises(ValueError, match="outside vault boundary"):
+        list_markdown_files(
+            str(tmp_vault),
+            include_folders=["../outside"],
+        )
+
+
 def test_filter_files_since_sorted(tmp_vault):
     """Filtered files are sorted by mtime."""
     all_files = list_markdown_files(

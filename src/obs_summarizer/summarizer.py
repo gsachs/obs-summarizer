@@ -9,6 +9,36 @@ from obs_summarizer.llm import LLMResponse
 logger = logging.getLogger(__name__)
 
 
+def _parse_json(text: str) -> dict:
+    """Extract JSON object from LLM response text.
+
+    Handles:
+    - Clean JSON responses (direct parse)
+    - JSON embedded in prose or after preamble text (brace extraction)
+
+    Raises:
+        ValueError: If no valid JSON object can be extracted
+    """
+    text = text.strip()
+
+    # Method 1: Direct parse (ideal case)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Method 2: Extract first {...} object (handles preamble text or trailing text)
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(f"Cannot parse JSON from LLM response: {text[:200]!r}")
+
+
 def strip_frontmatter(text: str) -> str:
     """Remove YAML frontmatter from markdown.
 
@@ -86,71 +116,12 @@ def summarize_note(
 
     response = llm_call(system, user)
 
-    # Parse JSON response with robust extraction
-    def extract_json(content: str) -> dict:
-        """Extract JSON from response, handling markdown code blocks or extra text."""
-        original_content = content
-        content = content.strip()
-
-        # Method 1: Try direct parse first
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            pass
-
-        # Method 2: Try extracting from markdown code block (```json ... ```)
-        if "```json" in content:
-            # Find opening fence
-            start_idx = content.find("```json")
-            if start_idx >= 0:
-                # Start after the opening fence and any newline
-                start = start_idx + 7  # len("```json")
-                if start < len(content) and content[start] == "\n":
-                    start += 1
-
-                # Find closing fence
-                end_idx = content.find("```", start)
-                if end_idx > start:
-                    json_str = content[start:end_idx].strip()
-                    try:
-                        return json.loads(json_str)
-                    except json.JSONDecodeError:
-                        pass
-
-        # Method 3: Try extracting first {...} JSON object
-        # Find the first { and last } and try to parse that
-        brace_start = content.find("{")
-        if brace_start >= 0:
-            # Find the LAST closing brace to capture the entire object
-            brace_end = content.rfind("}")
-            if brace_end > brace_start:
-                json_str = content[brace_start:brace_end+1]
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    # Try to find a valid JSON endpoint by looking for closing patterns
-                    # In case there are multiple closing braces
-                    for i in range(brace_end, brace_start, -1):
-                        if content[i] == "}":
-                            try:
-                                candidate = content[brace_start:i+1]
-                                return json.loads(candidate)
-                            except json.JSONDecodeError:
-                                pass
-
-        # If all extraction methods fail, provide detailed error
-        raise json.JSONDecodeError(
-            f"Could not extract valid JSON from response",
-            original_content[:500], 0
-        )
-
     try:
-        summary = extract_json(response.content)
-    except json.JSONDecodeError as first_error:
+        summary = _parse_json(response.content)
+    except ValueError:
         logger.debug(f"First JSON parse failed for {title}. Response length: {len(response.content)}")
         logger.debug(f"First 500 chars: {response.content[:500]}")
         logger.warning(f"Failed to parse JSON for {title}. Retrying with stricter prompt.")
-        # Retry with stricter instructions
         strict_system = (
             "STRICT JSON OUTPUT ONLY.\n\n"
             "Return a valid JSON object with these exact fields:\n"
@@ -167,10 +138,8 @@ def summarize_note(
         )
         response = llm_call(strict_system, user)
         try:
-            summary = extract_json(response.content)
-        except json.JSONDecodeError as e:
-            # JSON parsing failed even after retry - this is a critical error
-            # Raise instead of returning fake data that would silently corrupt the digest
+            summary = _parse_json(response.content)
+        except ValueError as e:
             raise ValueError(
                 f"Failed to parse JSON response for {title} after retry.\n"
                 f"LLM response: {response.content[:200]}...\n"

@@ -3,7 +3,7 @@
 import logging
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class LLMResponse:
     content: str
 
 
-def create_llm_client(config: Dict) -> Callable:
+def create_llm_client(config: Dict) -> Callable[[str, str], LLMResponse]:
     """Factory to create LLM client based on configuration.
 
     Args:
@@ -34,7 +34,7 @@ def create_llm_client(config: Dict) -> Callable:
         raise ValueError(f"Unknown llm_backend: {backend}")
 
 
-def _create_claude_client(config: Dict) -> Callable:
+def _create_claude_client(config: Dict) -> Callable[[str, str], LLMResponse]:
     """Create Claude API client with retry logic."""
     import anthropic
     import os
@@ -82,11 +82,12 @@ def _create_claude_client(config: Dict) -> Callable:
                     time.sleep(wait_time)
                 else:
                     raise
+        raise RuntimeError("call_claude: exhausted 3 attempts without returning or raising")
 
     return call_claude
 
 
-def _create_local_client(config: Dict) -> Callable:
+def _create_local_client(config: Dict) -> Callable[[str, str], LLMResponse]:
     """Create local LLM client (LM Studio / Ollama) with retry logic."""
     import openai
 
@@ -127,5 +128,6 @@ def _create_local_client(config: Dict) -> Callable:
                     time.sleep(wait_time)
                 else:
                     raise
+        raise RuntimeError("call_local: exhausted 3 attempts without returning or raising")
 
     return call_local
