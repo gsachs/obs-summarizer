@@ -1,7 +1,7 @@
 ---
 title: "feat: Build Obsidian Digest Agent"
 type: feat
-status: active
+status: completed
 date: 2026-02-25
 origin: docs/brainstorms/2026-02-25-obsidian-digest-agent-brainstorm.md
 ---
@@ -289,18 +289,18 @@ Options:
 
 ## Acceptance Criteria
 
-- [ ] `obs-digest --dry-run` lists vault files modified since last run
-- [ ] `obs-digest` summarizes each file, writes digest to vault, updates checkpoint
-- [ ] Re-running immediately produces same digest (cache hit, no API calls)
-- [ ] Editing a note and re-running re-summarizes only that note
-- [ ] `llm_backend: local` works with LM Studio or Ollama endpoint
-- [ ] `llm_backend: claude` works with Anthropic API key
-- [ ] Switching backends requires only a config change
-- [ ] `--since 2026-02-20` processes files from that date regardless of checkpoint
-- [ ] `--no-cache` forces re-summarization
-- [ ] Invalid config fails fast with clear error message
-- [ ] All modules have unit tests
-- [ ] Full pipeline has integration test with mock LLM
+- [x] `obs-digest --dry-run` lists vault files modified since last run
+- [x] `obs-digest` summarizes each file, writes digest to vault, updates checkpoint
+- [x] Re-running immediately produces same digest (cache hit, no API calls)
+- [x] Editing a note and re-running re-summarizes only that note
+- [x] `llm_backend: local` works with LM Studio or Ollama endpoint
+- [x] `llm_backend: claude` works with Anthropic API key
+- [x] Switching backends requires only a config change
+- [x] `--since 2026-02-20` processes files from that date regardless of checkpoint
+- [x] `--no-cache` forces re-summarization
+- [x] Invalid config fails fast with clear error message
+- [x] All modules have unit tests (65 tests)
+- [x] Full pipeline has integration test with mock LLM
 
 ## Success Metrics
 
