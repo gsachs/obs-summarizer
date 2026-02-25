@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: SEC-NEW-003
 tags: [code-review, security, path-traversal, config]

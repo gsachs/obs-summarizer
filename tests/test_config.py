@@ -119,6 +119,21 @@ def test_load_config_valid(tmp_vault):
         assert config["state_path"] == "state.json"
 
 
+@pytest.mark.parametrize("path_key", ["cache_dir", "state_path"])
+def test_load_config_rejects_absolute_paths(tmp_vault, path_key):
+    """Absolute paths for cache_dir and state_path raise ConfigError."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config.yaml"
+        config_file.write_text(
+            f"vault_path: {tmp_vault}\n"
+            "llm_backend: local\n"
+            "local_base_url: http://localhost:1234/v1\n"
+            f"{path_key}: /etc/cron.d\n"
+        )
+        with pytest.raises(ConfigError, match="must be a relative path"):
+            load_config(str(config_file))
+
+
 def test_load_config_expands_tilde(tmp_vault):
     """Tilde in vault_path is expanded."""
     with tempfile.TemporaryDirectory() as tmpdir:

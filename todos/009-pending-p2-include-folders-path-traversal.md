@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: SEC-NEW-002
 tags: [code-review, security, path-traversal, scanner]

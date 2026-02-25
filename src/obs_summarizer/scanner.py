@@ -24,7 +24,17 @@ def list_markdown_files(
 
     # Determine search roots
     if include_folders:
-        roots = [vault / folder for folder in include_folders]
+        roots = []
+        for folder in include_folders:
+            resolved = (vault / folder).resolve()
+            try:
+                resolved.relative_to(vault.resolve())
+            except ValueError:
+                raise ValueError(
+                    f"include_folders entry '{folder}' resolves outside vault boundary.\n"
+                    f"Vault: {vault}\nResolved: {resolved}"
+                )
+            roots.append(resolved)
     else:
         roots = [vault]
 

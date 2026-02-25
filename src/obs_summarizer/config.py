@@ -91,4 +91,14 @@ def load_config(config_path: Optional[str] = None) -> dict:
     config.setdefault("cache_dir", ".cache/summaries")
     config.setdefault("state_path", "state.json")
 
+    # SECURITY: Reject absolute paths for write destinations
+    # Prevents writing cache/state files to arbitrary system locations
+    for path_key in ("cache_dir", "state_path"):
+        path_val = config[path_key]
+        if Path(path_val).is_absolute():
+            raise ConfigError(
+                f"'{path_key}' must be a relative path, got: {path_val}\n"
+                f"Relative paths are resolved from the working directory."
+            )
+
     return config

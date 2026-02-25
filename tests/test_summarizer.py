@@ -7,6 +7,7 @@ import pytest
 
 from obs_summarizer.llm import LLMResponse
 from obs_summarizer.summarizer import (
+    _parse_json,
     create_rollup,
     strip_frontmatter,
     summarize_note,
@@ -41,6 +42,22 @@ def test_truncate_to_chars_over_limit():
     result = truncate_to_chars(text, 20)
     assert len(result) <= 20 + len("\n[... truncated]")
     assert "[... truncated]" in result
+
+
+def test_parse_json_direct():
+    """Direct JSON parse succeeds."""
+    assert _parse_json('{"key": "value"}') == {"key": "value"}
+
+
+def test_parse_json_with_preamble():
+    """JSON embedded after preamble text is extracted."""
+    assert _parse_json('Here is the JSON: {"key": "value"} done.') == {"key": "value"}
+
+
+def test_parse_json_invalid():
+    """Unparseable text raises ValueError."""
+    with pytest.raises(ValueError):
+        _parse_json("not json at all")
 
 
 def test_summarize_note_valid_json():
